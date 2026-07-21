@@ -1,0 +1,83 @@
+{{- if .Values.rollout.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "servicechart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    notifications.argoproj.io/subscribe.on-rollout-aborted.slack: dgh-oncall
+    notifications.argoproj.io/subscribe.on-rollout-aborted.webhook: line-notify
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    canary:
+      canaryService: {{ include "servicechart.fullname" . }}-canary
+      stableService: {{ include "servicechart.fullname" . }}-stable
+      trafficRouting:
+        nginx:
+          stableIngress: {{ include "servicechart.fullname" . }}-ingress
+      steps:
+        - setWeight: 10
+        - pause: { duration: 5m }
+        - analysis:
+            templates: [{ templateName: {{ include "servicechart.fullname" . }}-error-rate-check }]
+            args: [{ name: service-name, value: {{ include "servicechart.fullname" . }}-canary }]
+        - setWeight: 50
+        - pause: { duration: 10m }
+        - analysis:
+            templates: [{ templateName: {{ include "servicechart.fullname" . }}-error-rate-check }]
+            args: [{ name: service-name, value: {{ include "servicechart.fullname" . }}-canary }]
+        - setWeight: 100
+  selector:
+    matchLabels:
+      app: {{ include "servicechart.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "servicechart.fullname" . }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: {{ include "servicechart.fullname" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8080 }
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8080 }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "servicechart.fullname" . }}-error-rate-check
+  namespace: {{ .Release.Namespace }}
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: error-rate
+      interval: 1m
+      count: 5
+      successCondition: result[0] <= 0.01     # error rate ต้องไม่เกิน 1%
+      failureLimit: 2                          # fail 2 ครั้งติด → auto-abort + rollback
+      provider:
+        prometheus:
+          address: http://prometheus.observability.svc.cluster.local:9090
+          # backtick trick หลีกเลี่ยงไม่ให้ Helm parse syntax ของ args placeholder ด้านล่างเอง (เป็นของ Argo Rollouts ไม่ใช่ Helm)
+          query: |
+            sum(rate(http_requests_total{service="{{ `{{` }}args.service-name{{ `}}` }}",status=~"5.."}[1m]))
+            /
+            sum(rate(http_requests_total{service="{{ `{{` }}args.service-name{{ `}}` }}"}[1m]))
+{{- end }}

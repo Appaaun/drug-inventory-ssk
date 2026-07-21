@@ -1,0 +1,71 @@
+# envs/dispensing-service/prod.yaml
+replicaCount: 3
+
+image:
+  repository: harbor.province.local/drug-inventory/dispensing-service
+  tag: "1.4.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits: { cpu: 1000m, memory: 512Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod"
+  - name: DB_HOST
+    value: "postgres-primary.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory"
+
+envFrom:
+  - secretRef:
+      name: dispensing-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: dispensing-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef: { key: secret/data/prod/dispensing-service, property: db_user }
+    - secretKey: DB_PASSWORD
+      remoteRef: { key: secret/data/prod/dispensing-service, property: db_password }
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: inventory.province.go.th
+      paths:
+        - path: /api/v1/dispensing-events
+          pathType: Prefix
+  tls:
+    - secretName: inventory-tls
+      hosts: [inventory.province.go.th]
+
+rollout:
+  enabled: true
+
+networkPolicy:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: dispensing-service

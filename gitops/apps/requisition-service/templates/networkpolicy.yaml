@@ -1,0 +1,88 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- if .Values.ingress.enabled }}
+# เปิดเฉพาะ ingress-nginx -> service นี้ (public-facing service)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-{{ include "servicechart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app: {{ include "servicechart.fullname" . }} }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
+      ports: [{ protocol: TCP, port: 8080 }]
+---
+{{- else if .Values.networkPolicy.allowIntraNamespaceIngress }}
+# internal service (ไม่มี public ingress) — เปิดให้ pod อื่นใน namespace เดียวกัน (เช่น requisition-service, API Gateway) เรียกเข้ามาได้
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace-to-{{ include "servicechart.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app: {{ include "servicechart.fullname" . }} }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: {{ .Release.Namespace }} }
+      ports: [{ protocol: TCP, port: 8080 }]
+---
+{{- end }}
+# เปิดเฉพาะ service นี้ -> namespace data (PostgreSQL/Kafka)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-{{ include "servicechart.fullname" . }}-to-data
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app: {{ include "servicechart.fullname" . }} }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: data }
+      ports:
+        - { protocol: TCP, port: 5432 }   # PostgreSQL ผ่าน PgBouncer
+        - { protocol: TCP, port: 9092 }   # Kafka
+{{- if .Values.networkPolicy.ingressHISWan }}
+---
+# รับ HL7 v2 (MLLP) inbound จาก Provincial WAN ที่เชื่อม รพ.สต. — ใช้เฉพาะ integration-service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-{{ include "servicechart.fullname" . }}-ingress-his-wan
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app: {{ include "servicechart.fullname" . }} }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock: { cidr: 10.20.0.0/16 }
+      ports: [{ protocol: TCP, port: 2575 }]
+{{- end }}
+{{- if .Values.networkPolicy.egressHISWan }}
+---
+# ส่ง ack/สถานะสต็อกกลับไป HIS ผ่าน Provincial WAN — ใช้เฉพาะ integration-service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-{{ include "servicechart.fullname" . }}-egress-his-wan
+  namespace: {{ .Release.Namespace }}
+spec:
+  podSelector:
+    matchLabels: { app: {{ include "servicechart.fullname" . }} }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock: { cidr: 10.20.0.0/16 }
+      ports: [{ protocol: TCP, port: 2575 }]
+{{- end }}
+{{- end }}

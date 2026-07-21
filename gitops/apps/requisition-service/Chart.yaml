@@ -1,0 +1,6 @@
+apiVersion: v2
+name: requisition-service
+description: Helm chart สำหรับ Requisition Service (Provincial Drug Inventory Management System)
+type: application
+version: 1.4.0
+appVersion: "1.4.0"

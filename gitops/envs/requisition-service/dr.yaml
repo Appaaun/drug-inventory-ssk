@@ -1,0 +1,62 @@
+# envs/dr/values.yaml — DR site (GDCC), warm standby: ไม่รับ traffic จริงจนกว่าจะ failover
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/requisition-service
+  tag: "1.4.0"           # ต้องตรงกับ release tag เดียวกับ prod เสมอ
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10          # scale up ตอน promote เป็น primary จริง
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: false
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dr"
+  - name: DB_HOST
+    value: "postgres-replica.data.svc.cluster.local"   # async streaming replica
+  - name: DB_NAME
+    value: "drug_inventory"
+
+envFrom:
+  - secretRef:
+      name: requisition-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: requisition-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef:
+        key: secret/data/prod/requisition-service   # ใช้ Vault path เดียวกับ prod
+        property: db_user
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: secret/data/prod/requisition-service
+        property: db_password
+
+ingress:
+  enabled: false           # ไม่เปิดรับ traffic จนกว่าจะ failover (DNS switch เป็นคนเปิด)
+
+rollout:
+  enabled: false           # DR ไม่ต้อง canary — sync ตรงทั้งก้อนตอน promote
+
+networkPolicy:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: requisition-service

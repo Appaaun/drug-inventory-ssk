@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: namespace-baseline-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: drug-inventory
+  source:
+    repoURL: https://gitlab.internal/health-region/gitops-repo.git
+    targetRevision: release-1.4.0
+    path: platform/namespace-baseline
+  destination:
+    server: https://k8s-primary.province.local
+    namespace: prod
+  syncPolicy:
+    # ไม่มี key "automated" เลย = manual sync — baseline กระทบทั้ง namespace (blast radius สูงกว่า service เดี่ยว) ต้องผ่าน CAB gate เหมือนกัน
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground

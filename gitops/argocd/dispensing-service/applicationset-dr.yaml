@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: dispensing-service-dr
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - cluster: dr-gdcc
+            server: https://k8s-dr.gdcc.go.th
+  template:
+    metadata:
+      name: dispensing-service-dr
+    spec:
+      project: drug-inventory
+      source:
+        repoURL: https://gitlab.internal/health-region/gitops-repo.git
+        targetRevision: release-1.4.0
+        path: apps/dispensing-service
+        helm:
+          valueFiles:
+            - ../../envs/dispensing-service/dr.yaml
+      destination:
+        server: '{{server}}'
+        namespace: prod
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

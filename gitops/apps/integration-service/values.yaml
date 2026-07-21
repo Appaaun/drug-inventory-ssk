@@ -1,0 +1,58 @@
+# Default values สำหรับ chart นี้ — envs/{dev,prod,dr}/values.yaml จะ override ทับด้วย -f
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/integration-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+env: []
+envFrom: []
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: null
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+topologySpreadConstraints: []
+
+ingress:
+  enabled: false
+  className: nginx
+  hosts: []
+  tls: []
+
+# false = plain Deployment (dev/dr) · true = Argo Rollouts canary (prod)
+rollout:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+  allowIntraNamespaceIngress: false  # ไม่รับ HTTP จาก pod อื่น — รับผ่าน MLLP (ingressHISWan) เท่านั้น
+  ingressHISWan: true    # รับ HL7 v2 (MLLP) inbound จาก Provincial WAN ของ รพ.สต.
+  egressHISWan: true     # ส่ง ack/สถานะสต็อกกลับไป HIS
+
+externalSecret:
+  enabled: false
+  secretStoreRef: vault-backend
+  target: integration-service-db-credentials
+  data: []
+
+serviceAccount:
+  create: true
+  name: integration-service
+  annotations: {}

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: integration-service
+description: >
+  HL7 v2 (MLLP) adapter เชื่อม JHIIS/HosXP_PCU ของ รพ.สต. กับ dispensing-service
+  (Provincial Drug Inventory Management System)
+type: application
+version: 1.4.0
+appVersion: "1.4.0"

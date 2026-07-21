@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --surface: #ffffff;
+  --foreground: #0a0a0a;
+  --muted: #6b6b6b;
+  --line: #e3e3e3;
+  --accent: #0a0a0a;
+  --accent-hover: #262626;
+  --chip-bg: #f6f6f6;
+  --brand: #17c964;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-chip: var(--chip-bg);
+  --color-brand: var(--brand);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-source-serif);
+}
+
+/* หน่วยงานภายใน — คุมธีมสว่างธีมเดียวตั้งใจ ไม่สลับตาม prefers-color-scheme
+   เพื่อไม่ให้หน้าจอบางส่วนอ่านไม่ออกเมื่อ component ถูกออกแบบมาสำหรับพื้นหลังสว่างเท่านั้น */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  letter-spacing: -0.011em;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  border-color: var(--line);
+}
+
+/* จุดเน้นแบรนด์แบบเดียวกับเว็บ Alwayzz — ใช้แซมเป็นจุดๆ ไม่ใช่ทั้งหน้า */
+.brand-serif {
+  font-family: var(--font-source-serif), serif;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/* ลูกเล่นตกแต่งหน้าแรก (curved lines + ticker) แบบเว็บ Alwayzz — โทนขาวดำล้วน ไม่ใส่สี */
+@keyframes line-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  15% {
+    opacity: 0.8;
+  }
+  70% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+.curved-line {
+  position: absolute;
+  top: 50%;
+  height: 380px;
+  margin-top: -190px;
+  border: 2px solid var(--line);
+  opacity: 0;
+  pointer-events: none;
+  animation: line-pulse 5s ease-in-out infinite;
+}
+
+.curved-line-left {
+  left: 0;
+  border-left: none;
+  border-radius: 0 80% 80% 0;
+}
+
+.curved-line-right {
+  right: 0;
+  border-right: none;
+  border-radius: 80% 0 0 80%;
+}
+
+@keyframes marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);
+}
+
+.ticker-track {
+  animation: marquee-left 24s linear infinite;
+}

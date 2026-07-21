@@ -1,0 +1,63 @@
+# envs/approval-service/prod.yaml
+replicaCount: 3
+
+image:
+  repository: harbor.province.local/drug-inventory/approval-service
+  tag: "1.4.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests: { cpu: 250m, memory: 256Mi }
+  limits: { cpu: 1000m, memory: 512Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod"
+  - name: DB_HOST
+    value: "postgres-primary.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory"
+
+envFrom:
+  - secretRef:
+      name: approval-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: approval-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef: { key: secret/data/prod/approval-service, property: db_user }
+    - secretKey: DB_PASSWORD
+      remoteRef: { key: secret/data/prod/approval-service, property: db_password }
+
+# internal service เท่านั้น — CAB gate ในสาย pipeline ยังคงบังคับก่อน sync เหมือน service อื่น
+ingress:
+  enabled: false
+
+rollout:
+  enabled: true
+
+networkPolicy:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: approval-service

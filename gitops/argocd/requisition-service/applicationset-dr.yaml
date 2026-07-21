@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: requisition-service-dr
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - cluster: dr-gdcc
+            server: https://k8s-dr.gdcc.go.th
+  template:
+    metadata:
+      name: requisition-service-dr
+    spec:
+      project: drug-inventory
+      source:
+        repoURL: https://gitlab.internal/health-region/gitops-repo.git
+        targetRevision: release-1.4.0     # deploy revision เดียวกับ prod เสมอ
+        path: apps/requisition-service
+        helm:
+          valueFiles:
+            - ../../envs/requisition-service/dr.yaml   # replica ต่ำกว่า prod (warm standby)
+      destination:
+        server: '{{server}}'
+        namespace: prod
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true      # DR sync อัตโนมัติได้ เพราะไม่รับ traffic จริงจนกว่าจะ failover

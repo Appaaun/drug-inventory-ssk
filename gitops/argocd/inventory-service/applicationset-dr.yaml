@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: inventory-service-dr
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - cluster: dr-gdcc
+            server: https://k8s-dr.gdcc.go.th
+  template:
+    metadata:
+      name: inventory-service-dr
+    spec:
+      project: drug-inventory
+      source:
+        repoURL: https://gitlab.internal/health-region/gitops-repo.git
+        targetRevision: release-1.4.0
+        path: apps/inventory-service
+        helm:
+          valueFiles:
+            - ../../envs/inventory-service/dr.yaml
+      destination:
+        server: '{{server}}'
+        namespace: prod
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true

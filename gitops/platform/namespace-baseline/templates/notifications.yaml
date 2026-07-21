@@ -1,0 +1,43 @@
+# ConfigMap นี้ต้องมีแค่ชุดเดียวต่อ namespace — Argo Rollouts notification controller
+# อ่าน config นี้แบบ namespace-wide ใช้ร่วมกันกับทุก Rollout ในนั้น ไม่ใช่ต่อ service
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argo-rollouts-notification-configuration
+  namespace: {{ .Release.Namespace }}
+data:
+  service.slack: |
+    token: $slack-token
+  service.webhook.line-notify: |
+    url: https://notify-api.line.me/api/notify
+    headers:
+      - name: Authorization
+        value: Bearer $line-notify-token
+      - name: Content-Type
+        value: application/x-www-form-urlencoded
+
+  template.rollout-aborted: |
+    message: |
+      🔴 [{{ .Release.Namespace }}] Rollout {{ `{{.rollout.name}}` }} ABORTED — canary analysis ล้มเหลว (error rate เกิน threshold)
+      Revision: {{ `{{.rollout.status.currentPodHash}}` }}
+  template.analysis-run-failed: |
+    message: |
+      ⚠️ [{{ .Release.Namespace }}] AnalysisRun {{ `{{.analysisrun.name}}` }} failed metric check
+  template.rollout-step-completed: |
+    message: |
+      🟢 [{{ .Release.Namespace }}] Rollout {{ `{{.rollout.name}}` }} step {{ `{{.rollout.status.currentStepIndex}}` }} สำเร็จ — weight {{ `{{.rollout.status.canary.weights.canary}}` }}%
+
+  trigger.on-rollout-aborted: |
+    - when: rollout.status.abort == true
+      send: [rollout-aborted]
+  trigger.on-analysis-run-failed: |
+    - when: analysisrun.status.phase == 'Failed'
+      send: [analysis-run-failed]
+  trigger.on-rollout-step-completed: |
+    - when: rollout.status.currentStepIndex != nil
+      send: [rollout-step-completed]
+
+  subscriptions: |
+    - recipients: [slack:dgh-oncall, webhook:line-notify]
+      triggers: [on-rollout-aborted, on-analysis-run-failed]
+# secret ที่ใช้ (slack-token, line-notify-token) ดึงจาก Vault ผ่าน ExternalSecret ของแต่ละ namespace

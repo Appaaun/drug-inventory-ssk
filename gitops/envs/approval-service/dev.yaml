@@ -1,0 +1,53 @@
+# envs/approval-service/dev.yaml
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/approval-service
+  tag: "main"
+  pullPolicy: Always
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 256Mi }
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: DB_HOST
+    value: "postgres-dev.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory_dev"
+
+envFrom:
+  - secretRef:
+      name: approval-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: approval-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef: { key: secret/data/dev/approval-service, property: db_user }
+    - secretKey: DB_PASSWORD
+      remoteRef: { key: secret/data/dev/approval-service, property: db_password }
+
+# internal service เท่านั้น — เข้าถึงผ่าน ClusterIP/API Gateway routing ภายใน ไม่มี public ingress
+ingress:
+  enabled: false
+
+rollout:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+
+serviceAccount:
+  create: true
+  name: approval-service

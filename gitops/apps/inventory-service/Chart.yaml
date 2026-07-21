@@ -1,0 +1,8 @@
+apiVersion: v2
+name: inventory-service
+description: >
+  บันทึกรับยาเข้าคลัง (สสจ./CUP) และดูแล stock lot / FEFO
+  (Provincial Drug Inventory Management System)
+type: application
+version: 1.4.0
+appVersion: "1.4.0"

@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: approval-service-dev
+  namespace: argocd
+spec:
+  project: drug-inventory
+  source:
+    repoURL: https://gitlab.internal/health-region/gitops-repo.git
+    targetRevision: main
+    path: apps/approval-service
+    helm:
+      valueFiles:
+        - ../../envs/approval-service/dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

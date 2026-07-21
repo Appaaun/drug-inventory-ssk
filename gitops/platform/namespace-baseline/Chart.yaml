@@ -1,0 +1,8 @@
+apiVersion: v2
+name: namespace-baseline
+description: >
+  Namespace-wide resources ที่ต้องมีแค่ชุดเดียวต่อ namespace (ไม่ใช่ต่อ service)
+  ติดตั้งก่อน service chart อื่นๆ ทั้งหมดใน namespace เดียวกันเสมอ
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

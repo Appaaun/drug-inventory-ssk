@@ -1,0 +1,10 @@
+# โปรเจกต์แยกต่างหาก ไม่เกี่ยวกับระบบจัดการคลังยา
+alwayzz/
+
+# Claude Code local tooling state
+.claude/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp

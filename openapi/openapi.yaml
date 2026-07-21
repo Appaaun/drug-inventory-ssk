@@ -1,0 +1,207 @@
+openapi: 3.0.3
+info:
+  title: Provincial Drug Inventory API
+  version: 1.4.0
+servers:
+  - url: https://inventory.province.go.th/api/v1
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    RequisitionItem:
+      type: object
+      required: [drug_code, qty_requested]
+      properties:
+        drug_code: { type: string, example: "TMT-00123456" }
+        qty_requested: { type: number }
+        current_stock: { type: number, readOnly: true }
+        avg_monthly_usage: { type: number, readOnly: true }
+    Requisition:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        requester_org_id: { type: string, format: uuid }
+        target_org_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [DRAFT, PENDING_CUP_APPROVAL, PENDING_PROVINCE_APPROVAL, CUP_APPROVED,
+                 PROVINCE_APPROVED, REJECTED, CANCELLED, IN_TRANSIT,
+                 ARRIVED_PENDING_CONFIRM, DISCREPANCY_OPEN, CLOSED]
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/RequisitionItem' }
+    GoodsReceiptItem:
+      type: object
+      required: [drug_code, lot_no, expiry_date, qty_received, unit]
+      properties:
+        drug_code: { type: string }
+        lot_no: { type: string }
+        expiry_date: { type: string, format: date }
+        qty_received: { type: number }
+        unit: { type: string }
+        unit_cost: { type: number }
+    DispenseItem:
+      type: object
+      properties:
+        drug_code: { type: string }
+        lot_no: { type: string }
+        qty_dispensed: { type: number }
+
+paths:
+  /inventory/receipts:
+    post:
+      summary: บันทึกรับยาเข้าคลังจังหวัด
+      security: [{ bearerAuth: [inventory:receipt:create] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [warehouse_id, items, received_by, received_date]
+              properties:
+                warehouse_id: { type: string }
+                supplier_id: { type: string }
+                po_reference: { type: string }
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/GoodsReceiptItem' }
+                received_by: { type: string, format: uuid }
+                received_date: { type: string, format: date }
+      responses:
+        '201': { description: บันทึกรับยาสำเร็จ }
+        '403': { description: "ไม่มีสิทธิ์ — scope/org_id ไม่ตรงกับ JWT claims" }
+
+  /requisitions:
+    post:
+      summary: สร้างคำขอเบิกยาจาก รพ.สต.
+      security: [{ bearerAuth: [requisition:create] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requester_org_id, target_org_id, items]
+              properties:
+                requester_org_id: { type: string, format: uuid }
+                target_org_id: { type: string, format: uuid }
+                priority: { type: string, enum: [normal, urgent] }
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/RequisitionItem' }
+      responses:
+        '201':
+          description: สร้างคำขอสำเร็จ
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Requisition' }
+        '403': { description: "ไม่มีสิทธิ์ — scope/org_id ไม่ตรงกับ JWT claims" }
+    get:
+      summary: ดูรายการคำขอเบิก (คิวอนุมัติ/ประวัติ)
+      security: [{ bearerAuth: [requisition:read] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: org_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: รายการคำขอ
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Requisition' }
+
+  /requisitions/{id}/approve:
+    patch:
+      summary: อนุมัติคำขอเบิก (CUP หรือ สสจ. ตามระดับ escalation)
+      security: [{ bearerAuth: [requisition:approve] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approved_items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      drug_code: { type: string }
+                      qty_approved: { type: number }
+                      lot_no: { type: string }
+                remark: { type: string }
+      responses:
+        '200': { description: อนุมัติสำเร็จ }
+        '409': { description: "สถานะปัจจุบันไม่อยู่ใน PENDING_*_APPROVAL" }
+
+  /requisitions/{id}/dispatch:
+    post:
+      summary: จัดส่งยาตามคำขอที่อนุมัติแล้ว
+      security: [{ bearerAuth: [requisition:dispatch] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicle_no: { type: string }
+                driver: { type: string }
+                dispatched_at: { type: string, format: date-time }
+                delivery_note_no: { type: string }
+      responses:
+        '200': { description: "สถานะเปลี่ยนเป็น IN_TRANSIT — ตัดสต็อกต้นทางแล้ว" }
+
+  /requisitions/{id}/receive-confirm:
+    post:
+      summary: รพ.สต. ยืนยันรับยา
+      security: [{ bearerAuth: [requisition:receive] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                received_items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      drug_code: { type: string }
+                      qty_received: { type: number }
+                      condition: { type: string, enum: [OK, DAMAGED] }
+      responses:
+        '200': { description: "ตรงกัน → CLOSED, ไม่ตรง → DISCREPANCY_OPEN" }
+
+  /dispensing-events:
+    post:
+      summary: บันทึกจ่ายยาให้ผู้ป่วย (ตัดสต็อก) — เรียกจาก UI มือ หรือ Integration Engine
+      security: [{ bearerAuth: [dispensing:create] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [org_id, items, dispensed_by, dispensed_at, source_system]
+              properties:
+                org_id: { type: string, format: uuid }
+                encounter_ref: { type: string }
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/DispenseItem' }
+                dispensed_by: { type: string, format: uuid }
+                dispensed_at: { type: string, format: date-time }
+                source_system: { type: string, enum: [JHIIS, HosXP_PCU, MANUAL] }
+      responses:
+        '201': { description: บันทึกสำเร็จ ตัดสต็อกแล้ว }
+        '200': { description: "Idempotent replay — เคยบันทึก event นี้แล้ว คืนผลลัพธ์เดิม" }
+        '409': { description: "INSUFFICIENT_STOCK — จำนวนคงเหลือไม่พอ" }

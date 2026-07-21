@@ -1,0 +1,70 @@
+# envs/dev/values.yaml
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/requisition-service
+  tag: "main"            # ArgoCD sync ตาม main branch เสมอ (auto-deploy)
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: DB_HOST
+    value: "postgres-dev.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory_dev"
+
+envFrom:
+  - secretRef:
+      name: requisition-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: requisition-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef:
+        key: secret/data/dev/requisition-service
+        property: db_user
+    - secretKey: DB_PASSWORD
+      remoteRef:
+        key: secret/data/dev/requisition-service
+        property: db_password
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: inventory-dev.province.go.th
+      paths:
+        - path: /api/v1/requisitions
+          pathType: Prefix
+  tls:
+    - secretName: inventory-dev-tls
+      hosts:
+        - inventory-dev.province.go.th
+
+rollout:
+  enabled: false          # dev ใช้ Deployment ธรรมดา ไม่ต้อง canary
+
+networkPolicy:
+  enabled: false           # เปิดกว้างไว้เพื่อ debug ง่ายใน dev
+
+serviceAccount:
+  create: true
+  name: requisition-service

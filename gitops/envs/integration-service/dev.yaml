@@ -1,0 +1,55 @@
+# envs/integration-service/dev.yaml
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/integration-service
+  tag: "main"
+  pullPolicy: Always
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }   # HL7 parsing กิน memory มากกว่า service อื่นเล็กน้อย
+  limits: { cpu: 500m, memory: 512Mi }
+
+autoscaling:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: DB_HOST
+    value: "postgres-dev.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory_dev"
+  - name: MLLP_PORT
+    value: "2575"
+
+envFrom:
+  - secretRef:
+      name: integration-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: integration-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef: { key: secret/data/dev/integration-service, property: db_user }
+    - secretKey: DB_PASSWORD
+      remoteRef: { key: secret/data/dev/integration-service, property: db_password }
+
+# ไม่มี public ingress — รับข้อความผ่าน MLLP (ดู networkPolicy.ingressHISWan) ไม่ใช่ HTTP
+ingress:
+  enabled: false
+
+rollout:
+  enabled: false
+
+networkPolicy:
+  enabled: false   # dev เปิดกว้างไว้เพื่อ debug ง่าย (ปิด zero-trust ชั่วคราว)
+
+serviceAccount:
+  create: true
+  name: integration-service

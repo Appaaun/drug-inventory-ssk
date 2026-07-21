@@ -1,0 +1,54 @@
+# envs/approval-service/dr.yaml — DR site (GDCC), warm standby
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/approval-service
+  tag: "1.4.0"
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { cpu: 500m, memory: 256Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: false
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dr"
+  - name: DB_HOST
+    value: "postgres-replica.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory"
+
+envFrom:
+  - secretRef:
+      name: approval-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: approval-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef: { key: secret/data/prod/approval-service, property: db_user }
+    - secretKey: DB_PASSWORD
+      remoteRef: { key: secret/data/prod/approval-service, property: db_password }
+
+ingress:
+  enabled: false
+
+rollout:
+  enabled: false
+
+networkPolicy:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: approval-service

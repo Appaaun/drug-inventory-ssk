@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: requisition-service-dev
+  namespace: argocd
+spec:
+  project: drug-inventory
+  source:
+    repoURL: https://gitlab.internal/health-region/gitops-repo.git
+    targetRevision: main
+    path: apps/requisition-service
+    helm:
+      valueFiles:
+        - ../../envs/requisition-service/dev.yaml
+  destination:
+    server: https://kubernetes.default.svc   # cluster เดียวกับที่ ArgoCD รัน (Primary site)
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true        # ลบ resource ที่หายไปจาก manifest อัตโนมัติ
+      selfHeal: true      # ถ้ามีคนแก้ cluster มือ ให้ sync กลับตาม git เสมอ
+    syncOptions:
+      - CreateNamespace=true

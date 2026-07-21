@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dispensing-service-prod
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-deployed.slack: dgh-oncall
+spec:
+  project: drug-inventory
+  source:
+    repoURL: https://gitlab.internal/health-region/gitops-repo.git
+    targetRevision: release-1.4.0
+    path: apps/dispensing-service
+    helm:
+      valueFiles:
+        - ../../envs/dispensing-service/prod.yaml
+  destination:
+    server: https://k8s-primary.province.local
+    namespace: prod
+  syncPolicy:
+    # ไม่มี key "automated" เลย = manual sync — ต้องผ่าน CAB gate ก่อน sync เสมอ
+    syncOptions:
+      - PrunePropagationPolicy=foreground

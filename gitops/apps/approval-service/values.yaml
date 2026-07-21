@@ -1,0 +1,58 @@
+# Default values สำหรับ chart นี้ — envs/{dev,prod,dr}/values.yaml จะ override ทับด้วย -f
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/approval-service
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+env: []
+envFrom: []
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: null
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+topologySpreadConstraints: []
+
+ingress:
+  enabled: false
+  className: nginx
+  hosts: []
+  tls: []
+
+# false = plain Deployment (dev/dr) · true = Argo Rollouts canary (prod)
+rollout:
+  enabled: false
+
+networkPolicy:
+  enabled: false
+  allowIntraNamespaceIngress: true   # internal service (ไม่มี public ingress) — ให้ pod อื่นใน namespace เรียกได้
+  ingressHISWan: false
+  egressHISWan: false
+
+externalSecret:
+  enabled: false
+  secretStoreRef: vault-backend
+  target: approval-service-db-credentials
+  data: []
+
+serviceAccount:
+  create: true
+  name: approval-service
+  annotations: {}

@@ -1,0 +1,56 @@
+# envs/integration-service/dr.yaml — DR site (GDCC), warm standby
+replicaCount: 1
+
+image:
+  repository: harbor.province.local/drug-inventory/integration-service
+  tag: "1.4.0"
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: 500m, memory: 512Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: false
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dr"
+  - name: DB_HOST
+    value: "postgres-replica.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory"
+  - name: MLLP_PORT
+    value: "2575"
+
+envFrom:
+  - secretRef:
+      name: integration-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: integration-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef: { key: secret/data/prod/integration-service, property: db_user }
+    - secretKey: DB_PASSWORD
+      remoteRef: { key: secret/data/prod/integration-service, property: db_password }
+
+ingress:
+  enabled: false
+
+rollout:
+  enabled: false
+
+networkPolicy:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: integration-service

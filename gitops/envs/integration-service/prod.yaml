@@ -1,0 +1,64 @@
+# envs/integration-service/prod.yaml
+replicaCount: 2
+
+image:
+  repository: harbor.province.local/drug-inventory/integration-service
+  tag: "1.4.0"
+  pullPolicy: IfNotPresent
+
+resources:
+  requests: { cpu: 250m, memory: 384Mi }
+  limits: { cpu: 1000m, memory: 768Mi }
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+
+env:
+  - name: SPRING_PROFILES_ACTIVE
+    value: "prod"
+  - name: DB_HOST
+    value: "postgres-primary.data.svc.cluster.local"
+  - name: DB_NAME
+    value: "drug_inventory"
+  - name: MLLP_PORT
+    value: "2575"
+
+envFrom:
+  - secretRef:
+      name: integration-service-db-credentials
+
+externalSecret:
+  enabled: true
+  secretStoreRef: vault-backend
+  target: integration-service-db-credentials
+  data:
+    - secretKey: DB_USER
+      remoteRef: { key: secret/data/prod/integration-service, property: db_user }
+    - secretKey: DB_PASSWORD
+      remoteRef: { key: secret/data/prod/integration-service, property: db_password }
+
+ingress:
+  enabled: false
+
+rollout:
+  enabled: true
+
+networkPolicy:
+  enabled: true
+
+serviceAccount:
+  create: true
+  name: integration-service

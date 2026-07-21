@@ -1,0 +1,8 @@
+apiVersion: v2
+name: dispensing-service
+description: >
+  บันทึกจ่ายยาให้ผู้ป่วยและตัดสต็อก รับ event ทั้งจาก UI มือและ Integration Engine
+  (Provincial Drug Inventory Management System)
+type: application
+version: 1.4.0
+appVersion: "1.4.0"

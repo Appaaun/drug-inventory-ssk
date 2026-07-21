@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: requisition-service-prod
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-deployed.slack: dgh-oncall
+spec:
+  project: drug-inventory
+  source:
+    repoURL: https://gitlab.internal/health-region/gitops-repo.git
+    targetRevision: release-1.4.0        # ผูกกับ release tag ไม่ใช่ main
+    path: apps/requisition-service
+    helm:
+      valueFiles:
+        - ../../envs/requisition-service/prod.yaml
+  destination:
+    server: https://k8s-primary.province.local
+    namespace: prod
+  syncPolicy:
+    # ไม่มี key "automated" เลย = manual sync — ต้องกด "Sync" ใน ArgoCD UI/CLI หลัง CAB อนุมัติ (ผูกกับ ticket)
+    syncOptions:
+      - PrunePropagationPolicy=foreground
+  # ArgoCD Rollouts (Argo Rollouts controller) ทำ canary ให้ traffic ไหล 10%→50%→100%
+  # โดยอ่าน strategy จาก Rollout CRD ใน chart เดียวกัน แทนที่จะใช้ Deployment ธรรมดา
