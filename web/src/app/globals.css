@@ -10,6 +10,8 @@
   --accent-hover: #036148;
   --chip-bg: #f6f6f6;
   --brand: #17c964;
+  --font-inter: "Inter Variable", system-ui, sans-serif;
+  --font-source-serif: "Source Serif 4 Variable", Georgia, serif;
 }
 
 @theme inline {

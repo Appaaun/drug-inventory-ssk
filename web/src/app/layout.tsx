@@ -1,19 +1,9 @@
 import type { Metadata } from "next";
-import { Inter, Source_Serif_4 } from "next/font/google";
+// ฟอนต์ฝังไว้ในโปรเจกต์ (แพ็กเกจ fontsource) ไม่ดึงจาก Google ตอน build — เคยทำให้ build บน Vercel ล้มเหลว
+import "@fontsource-variable/inter";
+import "@fontsource-variable/source-serif-4";
+import "@fontsource-variable/source-serif-4/wght-italic.css";
 import "./globals.css";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const sourceSerif = Source_Serif_4({
-  variable: "--font-source-serif",
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  style: ["normal", "italic"],
-});
 
 export const metadata: Metadata = {
   title: "ระบบจัดการคลังยา — อบจ.ศรีสะเกษ",
@@ -28,7 +18,7 @@ export default function RootLayout({
   return (
     <html
       lang="th"
-      className={`${inter.variable} ${sourceSerif.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="flex min-h-full flex-col bg-background text-foreground font-sans">
         {children}
