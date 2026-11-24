@@ -18,6 +18,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // /api/integration/* ใช้ API key (header x-api-key) สำหรับระบบภายนอกอย่าง HOSxP/INVS ไม่ใช่ session cookie
+  // route handler ตรวจ key เองทุกครั้ง และไม่อ่าน x-user-* header เลย จึงปลอดภัยที่ปล่อยผ่านตรงนี้
+  if (pathname.startsWith("/api/integration/")) {
+    return NextResponse.next();
+  }
+
   const isProtectedPage =
     pathname.startsWith("/admin") || pathname.startsWith("/pcu") || pathname.startsWith("/cup");
   const isApi = pathname.startsWith("/api/");

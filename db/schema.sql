@@ -175,3 +175,16 @@ CREATE TABLE audit_logs (
 );
 -- append-only: จำกัดสิทธิ์ระดับ DB ให้ application role เขียนได้แค่ INSERT/SELECT
 -- REVOKE UPDATE, DELETE ON audit_logs FROM app_role;
+
+-- API key สำหรับระบบภายนอก (HOSxP/INVS/JHIIS) ที่ส่งข้อมูลเข้ามาทาง /api/integration/*
+-- เก็บเฉพาะ SHA-256 hash ของคีย์ (คีย์จริงแสดงครั้งเดียวตอนสร้าง) และผูกกับหน่วยงานเดียวเสมอ
+CREATE TABLE IF NOT EXISTS integration_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id),
+    name VARCHAR(100) NOT NULL,
+    key_hash CHAR(64) UNIQUE NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_integration_keys_org ON integration_keys(org_id);

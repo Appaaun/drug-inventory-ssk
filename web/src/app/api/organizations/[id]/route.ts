@@ -88,6 +88,7 @@ export async function DELETE(
       `DELETE FROM stock_lots WHERE warehouse_id IN (SELECT id FROM warehouses WHERE org_id = $1)`,
       [id]
     );
+    await client.query(`DELETE FROM integration_keys WHERE org_id = $1`, [id]);
     await client.query(`DELETE FROM warehouses WHERE org_id = $1`, [id]);
     await client.query(`DELETE FROM organizations WHERE id = $1`, [id]);
     await client.query("COMMIT");
